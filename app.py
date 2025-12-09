@@ -21,7 +21,7 @@ GVCCCM_SCORE_COLLECTION = 'Score'
 LOG_COLLECTION_NAME = 'practice_logs'
 
 # *** แนะนำให้ใช้ 1.5-flash เพื่อความชัวร์ (2.5 ยังไม่มีให้ใช้ทั่วไป) ***
-MODEL_NAME = 'gemini-1.5-flash' 
+MODEL_NAME = 'gemini-2.5-flash'
 
 # ฟังก์ชันช่วยตรวจสอบ Secrets
 def get_secret(key, section=None):
@@ -296,3 +296,4 @@ if __name__ == "__main__":
         elif st.session_state.page == 'feedback': feedback_page()
     else:
         st.error("ไม่สามารถโหลดข้อมูลระบบได้ กรุณาตรวจสอบการเชื่อมต่อ Database")
+
