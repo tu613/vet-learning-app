@@ -16,7 +16,7 @@ CASE_DATABASE_NAME = 'case_scenario'
 GVCCCM_DATABASE_NAME = 'GVCCCM'
 GVCCCM_STEP_COLLECTION = 'Step'
 GVCCCM_SCORE_COLLECTION = 'Score'
-MODEL_NAME = 'gemini-1.5-flash'
+MODEL_NAME = 'gemini-1.5-flash-002'
 
 # ฟังก์ชันช่วยตรวจสอบว่ามี Secrets หรือไม่
 def get_secret(key, section=None):
@@ -256,5 +256,6 @@ if __name__ == "__main__":
         elif st.session_state.page == 'feedback': feedback_page()
     else:
         st.error("ไม่สามารถโหลดข้อมูลระบบได้ กรุณาตรวจสอบการเชื่อมต่อ Database")
+
 
 
