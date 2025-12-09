@@ -33,7 +33,7 @@ def case_selection_page():
     
     # ข้อมูลจำลอง (Mock Data)
     cases = [
-        {"id": 1, "name": "สุนัขชื่อ 'โคล่า' (อาการ: ซึม เบื่ออาหาร)", "level": "Easy"},
+        {"id": 1, "name": "สุนัขชื่อ 'Philippe' (ตรวจสุขภาพและฉีดวัคซีนประจำปี)", "level": "Easy"},
         {"id": 2, "name": "แมวชื่อ 'มิมิ' (อาการ: อาเจียน)", "level": "Medium"},
     ]
     
