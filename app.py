@@ -17,7 +17,7 @@ GVCCCM_STEP_COLLECTION = 'Step'
 GVCCCM_SCORE_COLLECTION = 'Score'
 
 # *** ใช้ชื่อโมเดลนี้ รับรองผ่านชัวร์ ***
-MODEL_NAME = 'gemini-1.5-flash' 
+MODEL_NAME = 'gemini-1.5-flash-latest'
 
 # ฟังก์ชันช่วยตรวจสอบ Secrets
 def get_secret(key, section=None):
@@ -256,3 +256,4 @@ if __name__ == "__main__":
         elif st.session_state.page == 'feedback': feedback_page()
     else:
         st.error("ไม่สามารถโหลดข้อมูลระบบได้ กรุณาตรวจสอบการเชื่อมต่อ Database")
+
