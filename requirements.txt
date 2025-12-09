@@ -1,4 +1,5 @@
 streamlit
 pymongo
-google-genai
+google-generativeai
+
 
