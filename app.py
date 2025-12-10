@@ -212,6 +212,7 @@ def case_selection_page():
     # ตรงนี้อนาคตควรดึง list เคสจาก Database
     cases = [
         {"id": 1, "name": "สุนัขชื่อ 'Philippe' (Vaccination)", "level": "Easy" },
+        owner_persona
         {"id": 2, "name": "แมวชื่อ 'มิมิ' (Vomiting)", "level": "Medium"}
     ]
     
@@ -221,7 +222,7 @@ def case_selection_page():
         with st.container(border=True):
             c1, c2 = st.columns([3, 1])
             c1.markdown(f"**{case['name']}**")
-            c1.caption(case['owner_persona'])
+
             if c2.button("เริ่มฝึก", key=case['id']):
                 sys_instruct = (
                     f"คุณคือเจ้าของสัตว์ในเคส: {items}\n"
@@ -302,6 +303,7 @@ if __name__ == "__main__":
         elif st.session_state.page == 'feedback': feedback_page()
     else:
         st.error("ไม่สามารถโหลดข้อมูลระบบได้ กรุณาตรวจสอบการเชื่อมต่อ Database")
+
 
 
 
