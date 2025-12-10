@@ -55,7 +55,7 @@ def fetch_gvcccm_data():
         gvcccm_data_list = list(collection.find(
             {},
             {"_id": 0, "step_number": 1, "step_name_th": 1, "summary_detail": 1}
-        ).sort("step_number", MongoClient.ASCENDING))
+        ).sort("step_number", pymongo.ASCENDING))
         return gvcccm_data_list
     except Exception as e:
         st.error(f"❌ Error fetching GVCCCM steps: {e}")
@@ -304,4 +304,5 @@ if __name__ == "__main__":
         elif st.session_state.page == 'feedback': feedback_page()
     else:
         st.error("ไม่สามารถโหลดข้อมูลระบบได้ กรุณาตรวจสอบการเชื่อมต่อ Database")
+
 
