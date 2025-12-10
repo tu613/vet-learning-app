@@ -212,7 +212,7 @@ def case_selection_page():
     # ตรงนี้อนาคตควรดึง list เคสจาก Database
     cases = [
         {"id": 1, "name": "สุนัขชื่อ 'Philippe' (Vaccination)", "level": "Easy" },
-        {"id": 2, "name": "แมวชื่อ 'มิมิ' (Vomiting)", "level": "Medium"},
+        {"id": 2, "name": "แมวชื่อ 'มิมิ' (Vomiting)", "level": "Medium"}
     ]
     
     st.write(f"ผู้ใช้งาน: **{st.session_state.user['name']}** ({st.session_state.user['role']})")
@@ -302,6 +302,7 @@ if __name__ == "__main__":
         elif st.session_state.page == 'feedback': feedback_page()
     else:
         st.error("ไม่สามารถโหลดข้อมูลระบบได้ กรุณาตรวจสอบการเชื่อมต่อ Database")
+
 
 
 
