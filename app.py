@@ -13,6 +13,8 @@ st.set_page_config(page_title="Vet Learning Companion App", page_icon="🐾", la
 
 # ชื่อ Database และ Collection
 CASE_DATABASE_NAME = 'case_scenario'
+DOG_COLLECTION_NAME = 'dog'
+CASE_ID_TO_FIND = 'Dog_11'
 GVCCCM_DATABASE_NAME = 'GVCCCM'
 GVCCCM_STEP_COLLECTION = 'Step'
 GVCCCM_SCORE_COLLECTION = 'Score'
@@ -86,6 +88,25 @@ def fetch_score_checklist():
     finally:
         if client: client.close()
 
+# --- ฟังก์ชันใหม่: ดึงข้อมูลเคสจาก DB ---
+def fetch_all_cases():
+    """ดึงรายการเคสทั้งหมดจาก Collection 'dog'"""
+    client = None
+    try:
+        mongo_uri = get_secret("MONGODB_URI", section="mongo")
+        client = MongoClient(mongo_uri)
+        db = client[CASE_DATABASE_NAME]
+        collection = db[DOG_COLLECTION_NAME]
+        
+        # ดึงมาทั้งหมด (หรือจะ filter เฉพาะที่ active ก็ได้)
+        cases = list(collection.find({}))
+        return cases
+    except Exception as e:
+        st.error(f"❌ Error fetching cases: {e}")
+        return []
+    finally:
+        if client: client.close()
+
 # --- ฟังก์ชันใหม่: บันทึกประวัติการใช้งาน ---
 def save_practice_log(user_info, case_info, conversation_history, feedback_text):
     """บันทึกข้อมูลการฝึกซ้อมลง MongoDB"""
@@ -117,6 +138,49 @@ def save_practice_log(user_info, case_info, conversation_history, feedback_text)
         return False
     finally:
         if client: client.close()
+
+# --- ฟังก์ชันใหม่: สร้าง System Prompt จากข้อมูล DB ---
+def create_owner_system_prompt(case_data):
+    """แปลงข้อมูล JSON จาก MongoDB ให้เป็นคำสั่ง System Instruction สำหรับ AI"""
+    
+    # ดึงข้อมูลจาก fields ใน database (ต้องตรวจสอบชื่อ field ใน DB จริงอีกทีนะครับ)
+    # สมมติว่าใน DB มี field เหล่านี้:
+    animal_name = case_data.get('animal_name', 'สัตว์เลี้ยง')
+    species = case_data.get('species', 'สุนัข')
+    breed = case_data.get('breed', 'ไม่ระบุพันธุ์')
+    age = case_data.get('age', 'ไม่ระบุอายุ')
+    sex = case_data.get('sex', 'ไม่ระบุเพศ')
+    
+    owner_name = case_data.get('owner_name', 'เจ้าของ')
+    persona = case_data.get('client_persona', 'ทั่วไป') # นิสัยเจ้าของ
+    
+    chief_complaint = case_data.get('chief_complaint', 'มาตรวจทั่วไป')
+    history = case_data.get('history_present_illness', '-')
+    
+    # สร้าง Prompt
+    prompt = f"""
+    Role: คุณคือ '{owner_name}' เจ้าของสัตว์เลี้ยง
+    
+    Pet Info:
+    - ชื่อ: {animal_name}
+    - ชนิด: {species} พันธุ์: {breed}
+    - อายุ: {age} เพศ: {sex}
+    
+    Situation (สถานการณ์):
+    - อาการหลัก (Chief Complaint): {chief_complaint}
+    - ประวัติอาการ (History): {history}
+    
+    Your Persona (บุคลิกของคุณ):
+    {persona}
+    
+    Instructions (คำสั่ง):
+    1. ตอบคำถามนักสัตวแพทย์ (User) โดยสวมบทบาทตามบุคลิกที่กำหนดอย่างเคร่งครัด
+    2. ให้ข้อมูลตาม "ประวัติอาการ" เท่านั้น ห้ามแต่งเรื่องเพิ่มเองที่ขัดแย้งกับข้อมูล
+    3. ถ้าข้อมูลไหนไม่ได้ระบุไว้ ให้ตอบเลี่ยงๆ หรือบอกว่าจำไม่ได้ ตามธรรมชาติของเจ้าของ
+    4. ห้ามหลุดบทบาท AI หรือให้คะแนนการซักประวัติเด็ดขาด
+    5. ใช้ภาษาไทยในการสนทนา ตอบสั้นยาวตามบุคลิก
+    """
+    return prompt
 
 
 def create_gvcccm_context(gvcccm_data):
@@ -296,4 +360,5 @@ if __name__ == "__main__":
         elif st.session_state.page == 'feedback': feedback_page()
     else:
         st.error("ไม่สามารถโหลดข้อมูลระบบได้ กรุณาตรวจสอบการเชื่อมต่อ Database")
+
 
