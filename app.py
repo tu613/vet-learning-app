@@ -1,4 +1,5 @@
 import streamlit as st
+import pymongo 
 from pymongo import MongoClient
 import google.generativeai as genai
 
@@ -303,3 +304,4 @@ if __name__ == "__main__":
         elif st.session_state.page == 'feedback': feedback_page()
     else:
         st.error("ไม่สามารถโหลดข้อมูลระบบได้ กรุณาตรวจสอบการเชื่อมต่อ Database")
+
