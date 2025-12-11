@@ -14,29 +14,33 @@ CASE_DATABASE_NAME = 'case_scenario'
 GVCCCM_DATABASE_NAME = 'GVCCCM'
 GVCCCM_STEP_COLLECTION = 'Step'
 GVCCCM_SCORE_COLLECTION = 'Score'
-
-# *** เพิ่ม Collection สำหรับเก็บ Log ***
 LOG_COLLECTION_NAME = 'practice_logs'
 
-# *** แนะนำให้ใช้ 1.5-flash เพื่อความชัวร์ (2.5 ยังไม่มีให้ใช้ทั่วไป) ***
-MODEL_NAME = 'gemini-2.5-flash'
+# *** แก้ชื่อโมเดลให้ถูกต้อง (แนะนำ 1.5-flash เพื่อความชัวร์) ***
+MODEL_NAME = 'gemini-1.5-flash'
 
-
-
-# ฟังก์ชันช่วยดึงค่า Key (รองรับทั้ง Render และ Local)
-def get_secret(key):
-    # 1. ลองดึงจาก Environment Variable ก่อน (สำหรับ Render)
+# --- ฟังก์ชันช่วยดึงค่า Key (แก้ใหม่ให้รองรับ section) ---
+def get_secret(key, section=None):
+    """
+    ดึงค่า Secret โดยลำดับความสำคัญ:
+    1. os.environ (สำหรับ Render)
+    2. st.secrets (สำหรับ Local)
+    """
+    # 1. ลองดึงจาก Environment Variable ก่อน (Render มักเก็บแบบ Flat key)
+    # เช่น MONGODB_URI ก็จะเก็บชื่อนั้นเลย ไม่สน section
     value = os.environ.get(key)
     if value:
         return value
 
     # 2. ถ้าไม่เจอ ให้ลองดึงจาก st.secrets (สำหรับ Run ในเครื่องตัวเอง)
     try:
+        if section and section in st.secrets:
+            return st.secrets[section][key]
         return st.secrets[key]
     except (FileNotFoundError, KeyError):
         return None
 
-# เรียกใช้ฟังก์ชัน
+# เรียกใช้ฟังก์ชัน (Render ใช้ชื่อ GEMINI_API_KEY ตรงๆ)
 api_key = get_secret("GEMINI_API_KEY")
 
 # ตรวจสอบว่าได้ Key มาไหม
@@ -48,7 +52,7 @@ if not api_key:
 genai.configure(api_key=api_key)
 
 # ==============================================================================
-# 2. MONGODB FUNCTIONS (ดึงข้อมูล, แคช, และ **บันทึก**)
+# 2. MONGODB FUNCTIONS
 # ==============================================================================
 
 @st.cache_data(ttl=3600)
@@ -56,7 +60,10 @@ def fetch_gvcccm_data():
     """ดึงข้อมูลขั้นตอน GVCCCM (Step)"""
     client = None
     try:
+        # เรียกใช้แบบระบุ section ได้แล้ว เพราะแก้ฟังก์ชัน get_secret แล้ว
         mongo_uri = get_secret("MONGODB_URI", section="mongo")
+        if not mongo_uri: return []
+        
         client = MongoClient(mongo_uri)
         db = client[GVCCCM_DATABASE_NAME]
         collection = db[GVCCCM_STEP_COLLECTION]
@@ -77,6 +84,8 @@ def fetch_score_checklist():
     client = None
     try:
         mongo_uri = get_secret("MONGODB_URI", section="mongo")
+        if not mongo_uri: return []
+
         client = MongoClient(mongo_uri)
         db = client[GVCCCM_DATABASE_NAME]
         collection = db[GVCCCM_SCORE_COLLECTION]
@@ -92,18 +101,30 @@ def fetch_score_checklist():
         if client: client.close()
 
 @st.cache_data(ttl=3600)
-def case_scenario():
+def fetch_case_scenario():
+    """ดึงข้อมูลเคสจาก Mongo (เปลี่ยนชื่อฟังก์ชันให้ชัดเจนขึ้น)"""
     client = None
-    mongo_uri = get_secret("MONGODB_URI", section="mongo")
-    client = MongoClient(mongo_uri)
-    db = client.case_scenario
-    collection = db.dog.find()
-    items = list(collection)
-    return items
+    try:
+        mongo_uri = get_secret("MONGODB_URI", section="mongo")
+        if not mongo_uri: return []
 
-items = case_scenario()
+        client = MongoClient(mongo_uri)
+        db = client.case_scenario
+        # ดึงมาแค่บางส่วนหรือทั้งหมด แปลง ObjectId เป็น str เพื่อกัน Error เวลา cache
+        items = []
+        for doc in db.dog.find():
+            doc['_id'] = str(doc['_id']) # แปลง ObjectId เป็น String
+            items.append(doc)
+        return items
+    except Exception as e:
+        # st.error(f"❌ Error fetching cases: {e}") # ปิด error ไว้ก่อนเพื่อไม่ให้รกหน้าจอถ้า connect ไม่ได้
+        return []
+    finally:
+        if client: client.close()
 
-# --- ฟังก์ชันใหม่: บันทึกประวัติการใช้งาน ---
+# เรียกใช้ฟังก์ชันดึงข้อมูล (ย้ายมาไว้ใน main จะปลอดภัยกว่า แต่ประกาศตัวแปรไว้ก่อนได้)
+items = [] 
+
 def save_practice_log(user_info, case_info, conversation_history, feedback_text):
     """บันทึกข้อมูลการฝึกซ้อมลง MongoDB"""
     client = None
@@ -111,20 +132,17 @@ def save_practice_log(user_info, case_info, conversation_history, feedback_text)
         mongo_uri = get_secret("MONGODB_URI", section="mongo")
         client = MongoClient(mongo_uri)
         
-        # เลือก Database ที่จะเก็บ Log (เก็บไว้ในที่เดียวกับ Case ก็ได้ หรือจะแยกก็ได้)
         db = client[CASE_DATABASE_NAME] 
         collection = db[LOG_COLLECTION_NAME]
 
-        # สร้าง Document ที่จะบันทึก
         log_document = {
-            "user": user_info,                    # ข้อมูลคนเล่น (ชื่อ/role)
-            "case_id": case_info.get('id'),       # ID เคส
-            "case_name": case_info.get('name'),   # ชื่อเคส
-            "chat_history": conversation_history, # ประวัติการคุยทั้งหมด
-            "ai_feedback": feedback_text          # ผลประเมินจาก AI
+            "user": user_info,                    
+            "case_id": case_info.get('id'),       
+            "case_name": case_info.get('name'),   
+            "chat_history": conversation_history, 
+            "ai_feedback": feedback_text          
         }
 
-        # สั่งบันทึก
         collection.insert_one(log_document)
         return True
 
@@ -157,7 +175,6 @@ def create_score_context(assessment_stages):
 # ==============================================================================
 
 def final_evaluation(conversation_history, gvcccm_context, score_context):
-    """ส่งประวัติการสนทนาให้ AI ประเมินผล และบันทึกลง Database"""
     try:
         with st.spinner("🧠 AI กำลังวิเคราะห์ผลการซักประวัติ..."):
             history_text = "\n".join([f"{item['role']}: {item['content']}" for item in conversation_history])
@@ -177,23 +194,20 @@ def final_evaluation(conversation_history, gvcccm_context, score_context):
             
             response = model.generate_content(f"ประวัติการสนทนา:\n{history_text}\n\nประเมินผลตามคำสั่ง")
             
-            # เก็บผลลัพธ์ลง Session State
             st.session_state.final_feedback = response.text
             
-            # --- ส่วนที่เพิ่ม: บันทึกลง Database ทันทีที่ได้ผลลัพธ์ ---
             with st.spinner("💾 กำลังบันทึกผลการฝึกซ้อม..."):
                 save_success = save_practice_log(
-                    st.session_state.user,        # ข้อมูลผู้ใช้จาก Login
-                    st.session_state.current_case, # ข้อมูลเคสปัจจุบัน
-                    conversation_history,          # ประวัติแชท
-                    response.text                  # ผลประเมิน
+                    st.session_state.user,        
+                    st.session_state.current_case, 
+                    conversation_history,          
+                    response.text                  
                 )
                 
                 if save_success:
                     st.toast("✅ บันทึกข้อมูลลง Database เรียบร้อยแล้ว!", icon="💾")
                 else:
                     st.toast("⚠️ ไม่สามารถบันทึกข้อมูลได้", icon="❌")
-            # -----------------------------------------------------
 
             st.session_state.page = 'feedback'
             st.rerun()
@@ -211,30 +225,42 @@ def login_page():
         username = st.text_input("ชื่อผู้ใช้งาน")
         role = st.selectbox("สถานะ", ["นักศึกษา", "อาจารย์"])
         if st.form_submit_button("เข้าสู่ระบบ"):
-            st.session_state.user = {'name': username, 'role': role}
-            st.session_state.page = 'case_selection'
-            st.rerun()
+            if username:
+                st.session_state.user = {'name': username, 'role': role}
+                st.session_state.page = 'case_selection'
+                st.rerun()
+            else:
+                st.warning("กรุณากรอกชื่อผู้ใช้งาน")
 
 def case_selection_page():
     st.title("📋 เลือกเคสฝึกซ้อม")
-    # ตรงนี้อนาคตควรดึง list เคสจาก Database
-    cases = [
+    
+    # พยายามโหลดข้อมูลจริงจาก Mongo ถ้ามี
+    global items
+    if not items:
+        items = fetch_case_scenario()
+
+    # (Mockup) สำหรับแสดงผลตัวอย่าง ถ้า Database ยังไม่เรียบร้อย
+    mock_cases = [
         {"id": 1, "name": "สุนัขชื่อ 'Philippe' (Vaccination)", "level": "Easy", 
-         "owner_persona": "รักสัตว์มาก แต่พูดวกวน ให้ข้อมูลไม่ค่อยตรงประเด็น"}, # <-- เพิ่มกลับเข้าไป
+         "owner_persona": "รักสัตว์มาก แต่พูดวกวน ให้ข้อมูลไม่ค่อยตรงประเด็น", "details": str(items) if items else "No DB Data"},
         {"id": 2, "name": "แมวชื่อ 'มิมิ' (Vomiting)", "level": "Medium",
-         "owner_persona": "กังวลเรื่องค่าใช้จ่าย หงุดหงิดง่าย"}, # <-- เพิ่มกลับเข้าไป
+         "owner_persona": "กังวลเรื่องค่าใช้จ่าย หงุดหงิดง่าย", "details": "แมวอาเจียนมา 2 วัน..."},
     ]
     
     st.write(f"ผู้ใช้งาน: **{st.session_state.user['name']}** ({st.session_state.user['role']})")
 
-    for case in cases:
+    for case in mock_cases:
         with st.container(border=True):
             c1, c2 = st.columns([3, 1])
             c1.markdown(f"**{case['name']}**")
             c1.caption(case['owner_persona'])
             if c2.button("เริ่มฝึก", key=case['id']):
+                # สร้าง Prompt เจ้าของสัตว์
+                # หมายเหตุ: ควรส่งข้อมูลเฉพาะเคสนั้นๆ (case['details']) ไปให้ AI ไม่ใช่ส่ง items ทั้งหมด
                 sys_instruct = (
-                    f"คุณคือเจ้าของสัตว์ในเคส: {items}\n"
+                    f"คุณคือเจ้าของสัตว์ในเคสที่มีรายละเอียดดังนี้: {case.get('details')}\n"
+                    f"บุคลิกของคุณคือ: {case.get('owner_persona')}\n"
                     "จงตอบคำถามนักศึกษาตามบทบาท ห้ามหลุดบท ห้ามให้คะแนน ตอบสั้นๆกระชับแบบคนทั่วไปคุยกัน"
                 )
                 st.session_state.owner_system_prompt = sys_instruct
@@ -281,7 +307,7 @@ def chat_page(gvcccm_context, score_context):
 
 def feedback_page():
     st.title("📊 ผลการประเมิน")
-    st.success("✅ บันทึกข้อมูลการฝึกซ้อมลงในระบบเรียบร้อยแล้ว") # แจ้งเตือนผู้ใช้
+    st.success("✅ บันทึกข้อมูลการฝึกซ้อมลงในระบบเรียบร้อยแล้ว") 
     st.markdown(st.session_state.final_feedback)
     if st.button("กลับหน้าหลัก"):
         st.session_state.page = 'case_selection'
@@ -294,30 +320,21 @@ def feedback_page():
 
 if 'page' not in st.session_state: st.session_state.page = 'login'
 if 'chat_history' not in st.session_state: st.session_state.chat_history = []
-# ตรวจสอบว่ามีข้อมูล user หรือยัง ถ้าไม่มีให้เด้งไปหน้า login (กรณี refresh หน้าจอ)
 if 'user' not in st.session_state and st.session_state.page != 'login':
     st.session_state.page = 'login'
 
 if __name__ == "__main__":
+    # โหลดข้อมูลต่างๆ
     gvcccm_data = fetch_gvcccm_data()
     score_stages = fetch_score_checklist()
+    # โหลดข้อมูล Case มาเก็บไว้ในตัวแปร global items
+    items = fetch_case_scenario()
     
-    if gvcccm_data and score_stages:
-        ctx_gvcccm = create_gvcccm_context(gvcccm_data)
-        ctx_score = create_score_context(score_stages)
-        
-        if st.session_state.page == 'login': login_page()
-        elif st.session_state.page == 'case_selection': case_selection_page()
-        elif st.session_state.page == 'chat': chat_page(ctx_gvcccm, ctx_score)
-        elif st.session_state.page == 'feedback': feedback_page()
-    else:
-        st.error("ไม่สามารถโหลดข้อมูลระบบได้ กรุณาตรวจสอบการเชื่อมต่อ Database")
-
-
-
-
-
-
-
-
-
+    # สร้าง Context (ถ้าโหลดไม่ได้ ให้ใส่เป็นค่าว่างกัน Error)
+    ctx_gvcccm = create_gvcccm_context(gvcccm_data) if gvcccm_data else ""
+    ctx_score = create_score_context(score_stages) if score_stages else ""
+    
+    if st.session_state.page == 'login': login_page()
+    elif st.session_state.page == 'case_selection': case_selection_page()
+    elif st.session_state.page == 'chat': chat_page(ctx_gvcccm, ctx_score)
+    elif st.session_state.page == 'feedback': feedback_page()
