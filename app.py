@@ -298,7 +298,8 @@ def case_detail_page():
     # ดึงข้อมูลมาเตรียมไว้ (ใช้ฟังก์ชันตัวช่วยเดิม)
     pet_name = get_case_field(case, 'pet_name')
     pet_details = get_case_field(case, 'pet_details')
-    
+    role_th = get_case_field(case, 'role_th')
+    personality_tone = get_case_field(case, 'personality_tone') 
     
     st.title(f"📄 ข้อมูลผู้ป่วย: {pet_name}")
     
@@ -411,6 +412,7 @@ if __name__ == "__main__":
     elif st.session_state.page == 'case_detail': case_detail_page() # <-- หน้าใหม่ที่เพิ่มเข้ามา
     elif st.session_state.page == 'chat': chat_page(ctx_gvcccm, ctx_score)
     elif st.session_state.page == 'feedback': feedback_page()
+
 
 
 
