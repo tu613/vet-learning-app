@@ -216,7 +216,7 @@ def final_evaluation(conversation_history, gvcccm_context, score_context):
         st.error(f"❌ Error during evaluation: {e}")
 
 # ==============================================================================
-# 4. PAGE FUNCTIONS
+# 4. PAGE FUNCTIONS (UPDATED)
 # ==============================================================================
 
 def login_page():
@@ -234,44 +234,103 @@ def login_page():
 
 def case_selection_page():
     st.title("📋 เลือกเคสฝึกซ้อม")
+    st.write(f"ผู้ใช้งาน: **{st.session_state.user['name']}** ({st.session_state.user['role']})")
     
-    # พยายามโหลดข้อมูลจริงจาก Mongo ถ้ามี
+    # ดึงข้อมูลจาก Global variable 'items' ที่โหลดมาจาก Mongo
     global items
     if not items:
+        # ลองโหลดใหม่เผื่อตอนแรกโหลดไม่ติด
         items = fetch_case_scenario()
 
-    # (Mockup) สำหรับแสดงผลตัวอย่าง ถ้า Database ยังไม่เรียบร้อย
-    mock_cases = [
-        {"id": 1, "name": "สุนัขชื่อ 'Philippe' (Vaccination)", "level": "Easy", 
-         "owner_persona": "รักสัตว์มาก แต่พูดวกวน ให้ข้อมูลไม่ค่อยตรงประเด็น", "details": str(items) if items else "No DB Data"},
-        {"id": 2, "name": "แมวชื่อ 'มิมิ' (Vomiting)", "level": "Medium",
-         "owner_persona": "กังวลเรื่องค่าใช้จ่าย หงุดหงิดง่าย", "details": "แมวอาเจียนมา 2 วัน..."},
-    ]
-    
-    st.write(f"ผู้ใช้งาน: **{st.session_state.user['name']}** ({st.session_state.user['role']})")
+    if not items:
+        st.info("ไม่พบข้อมูลเคสในระบบ หรือกำลังโหลดข้อมูล...")
+        return
 
-    for case in mock_cases:
+    # Loop แสดงรายการเคสจาก MongoDB
+    # (สมมติว่าใน Mongo มี field: pet_name, difficulty_level, short_description)
+    for case in items:
         with st.container(border=True):
-            c1, c2 = st.columns([3, 1])
-            c1.markdown(f"**{case['name']}**")
-            c1.caption(case['owner_persona'])
-            if c2.button("เริ่มฝึก", key=case['id']):
-                # สร้าง Prompt เจ้าของสัตว์
-                # หมายเหตุ: ควรส่งข้อมูลเฉพาะเคสนั้นๆ (case['details']) ไปให้ AI ไม่ใช่ส่ง items ทั้งหมด
-                sys_instruct = (
-                    f"คุณคือเจ้าของสัตว์ในเคสที่มีรายละเอียดดังนี้: {case.get('details')}\n"
-                    f"บุคลิกของคุณคือ: {case.get('owner_persona')}\n"
-                    "จงตอบคำถามนักศึกษาตามบทบาท ห้ามหลุดบท ห้ามให้คะแนน ตอบสั้นๆกระชับแบบคนทั่วไปคุยกัน"
-                )
-                st.session_state.owner_system_prompt = sys_instruct
-                st.session_state.current_case = case
-                st.session_state.chat_history = []
-                st.session_state.chat_session = None
-                st.session_state.page = 'chat'
-                st.rerun()
+            c1, c2 = st.columns([4, 1])
+            
+            # ส่วนแสดงผลข้อมูลเบื้องต้นในหน้าเลือก
+            pet_name = case.get('pet_name', 'ไม่ระบุชื่อ')
+            
+            with c1:
+                st.subheader(f"🐾 {pet_name} ")
+                # แสดงคำโปรยสั้นๆ (ถ้ามี) หรือแสดงบางส่วนของ detail
+
+            with c2:
+                # ปุ่มกดเพื่อไปดูรายละเอียด (ยังไม่เริ่มแชท)
+                if st.button("ดูข้อมูลเคส", key=f"btn_{case['_id']}"):
+                    st.session_state.current_case = case
+                    st.session_state.page = 'case_detail' # ย้ายไปหน้า Detail
+                    st.rerun()
+
+# --- หน้าใหม่: แสดงรายละเอียดเคสก่อนเริ่ม ---
+def case_detail_page():
+    # ตรวจสอบว่ามีเคสถูกเลือกมาจริงไหม
+    if 'current_case' not in st.session_state or not st.session_state.current_case:
+        st.error("เกิดข้อผิดพลาด: ไม่พบข้อมูลเคส")
+        if st.button("กลับหน้าเลือกเคส"):
+            st.session_state.page = 'case_selection'
+            st.rerun()
+        return
+
+    case = st.session_state.current_case
+    
+    st.title(f"📄 ข้อมูลสัตว์ป่วย: {case.get('pet_name', '-')}")
+    
+    # 1. แสดงรายละเอียดสัตว์ป่วย (Signalment & History)
+    st.info("### 🐶 ข้อมูลสัตว์ป่วย (Pet Details)")
+    st.write(case.get('pet_details', 'ไม่ระบุรายละเอียด'))
+
+    # 2. แสดงบทบาทสมมติของเจ้าของ (Owner Role)
+    st.warning("### 👤 ข้อมูลเจ้าของสัตว์ (Owner Profile)")
+    st.write(f"**บทบาท:** {case.get('role_th', 'ไม่ระบุ')}")
+    # (Optional) อาจจะซ่อน Persona ลึกๆ ไว้ไม่ให้นักศึกษาเห็น หรือจะโชว์ก็ได้ตาม Design
+    # st.caption(f"Note: {case.get('owner_persona', '')}") 
+
+    st.divider()
+
+    col_back, col_start = st.columns([1, 1])
+    
+    with col_back:
+        if st.button("⬅️ ย้อนกลับ"):
+            st.session_state.page = 'case_selection'
+            st.session_state.current_case = None # Clear selection
+            st.rerun()
+            
+    with col_start:
+        if st.button("🚀 เริ่มซักประวัติ (Start Chat)", type="primary"):
+            # --- สร้าง System Prompt ตรงนี้ ---
+            # ดึงข้อมูลจาก MongoDB มาใส่ใน Prompt
+            pet_name = case.get('pet_name', 'สัตว์เลี้ยง')
+            pet_details = case.get('pet_details', '-')
+            owner_persona = case.get('owner_persona', 'ตอบคำถามตามปกติ')
+            owner_role = case.get('owner_role_th', '-')
+
+            sys_instruct = (
+                f"คุณคือเจ้าของสัตว์เลี้ยงชื่อ '{pet_name}'\n"
+                f"ข้อมูลสัตว์เลี้ยงและอาการ: {pet_details}\n"
+                f"บทบาทของคุณคือ: {owner_role}\n"
+                f"บุคลิกและอารมณ์ของคุณ (Persona): {owner_persona}\n"
+                "--------------------------------------------------\n"
+                "คำสั่ง:\n"
+                "1. จงสวมบทบาทเป็นเจ้าของสัตว์อย่างสมจริง ตามข้อมูลด้านบน\n"
+                "2. ตอบคำถามนักสัตวแพทย์ (User) ตามอาการที่เป็นจริง\n"
+                "3. ห้ามหลุดบท ห้ามบอกว่าเป็น AI\n"
+                "4. ตอบสั้นๆ กระชับ เหมือนบทสนทนาจริง ไม่ต้องทางการมาก\n"
+            )
+            
+            # Setup Session
+            st.session_state.owner_system_prompt = sys_instruct
+            st.session_state.chat_history = []
+            st.session_state.chat_session = None
+            st.session_state.page = 'chat' # ไปหน้าแชท
+            st.rerun()
 
 def chat_page(gvcccm_context, score_context):
-    st.title(f"💬 ห้องตรวจ: {st.session_state.current_case['name']}")
+    st.title(f"💬 ห้องตรวจ: {st.session_state.current_case.get('pet_name', 'Case')}")
     
     if 'chat_session' not in st.session_state or st.session_state.chat_session is None:
         model = genai.GenerativeModel(
@@ -281,6 +340,9 @@ def chat_page(gvcccm_context, score_context):
         st.session_state.chat_session = model.start_chat(history=[])
 
     with st.sidebar:
+        # แสดงข้อมูลย่อๆ เผื่อลืม
+        st.caption(f"กำลังซักประวัติเคส: **{st.session_state.current_case.get('pet_name')}**")
+        st.divider()
         st.info("เมื่อกดจบการซักประวัติ ระบบจะประเมินผลและ **บันทึกข้อมูลอัตโนมัติ**")
         if st.button("🛑 จบการซักประวัติและประเมินผล", type="primary"):
             final_evaluation(st.session_state.chat_history, gvcccm_context, score_context)
@@ -312,10 +374,11 @@ def feedback_page():
     if st.button("กลับหน้าหลัก"):
         st.session_state.page = 'case_selection'
         st.session_state.final_feedback = None
+        st.session_state.current_case = None
         st.rerun()
 
 # ==============================================================================
-# 5. MAIN APP
+# 5. MAIN APP (UPDATED)
 # ==============================================================================
 
 if 'page' not in st.session_state: st.session_state.page = 'login'
@@ -327,15 +390,15 @@ if __name__ == "__main__":
     # โหลดข้อมูลต่างๆ
     gvcccm_data = fetch_gvcccm_data()
     score_stages = fetch_score_checklist()
-    # โหลดข้อมูล Case มาเก็บไว้ในตัวแปร global items
-    items = fetch_case_scenario()
+    items = fetch_case_scenario() # โหลดเคสจาก Mongo
     
-    # สร้าง Context (ถ้าโหลดไม่ได้ ให้ใส่เป็นค่าว่างกัน Error)
     ctx_gvcccm = create_gvcccm_context(gvcccm_data) if gvcccm_data else ""
     ctx_score = create_score_context(score_stages) if score_stages else ""
     
+    # เพิ่ม Logic การเปลี่ยนหน้า case_detail
     if st.session_state.page == 'login': login_page()
     elif st.session_state.page == 'case_selection': case_selection_page()
+    elif st.session_state.page == 'case_detail': case_detail_page() # <-- หน้าใหม่ที่เพิ่มเข้ามา
     elif st.session_state.page == 'chat': chat_page(ctx_gvcccm, ctx_score)
     elif st.session_state.page == 'feedback': feedback_page()
 
