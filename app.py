@@ -20,24 +20,7 @@ LOG_COLLECTION_NAME = 'practice_logs'
 # *** แนะนำให้ใช้ 1.5-flash เพื่อความชัวร์ (2.5 ยังไม่มีให้ใช้ทั่วไป) ***
 MODEL_NAME = 'gemini-2.5-flash'
 
-# ฟังก์ชันช่วยตรวจสอบ Secrets ของ SCC
-#def get_secret(key, section=None):
-    #try:
-       # if section:
-           # return st.secrets[section][key]
-       # return st.secrets[key]
-   # except FileNotFoundError:
-      #  st.error("🚨 ไม่พบไฟล์ .streamlit/secrets.toml")
-       # st.stop()
-  #  except KeyError:
-     #   st.error(f"🚨 ไม่พบ Key: '{key}' ใน secrets.toml")
-     #   st.stop()
 
-# ตั้งค่า API Key
-#try:
-#    genai.configure(api_key=get_secret("GEMINI_API_KEY"))
-#except:
-#    pass
 
 # ฟังก์ชันช่วยดึงค่า Key (รองรับทั้ง Render และ Local)
 def get_secret(key):
@@ -328,6 +311,7 @@ if __name__ == "__main__":
         elif st.session_state.page == 'feedback': feedback_page()
     else:
         st.error("ไม่สามารถโหลดข้อมูลระบบได้ กรุณาตรวจสอบการเชื่อมต่อ Database")
+
 
 
 
