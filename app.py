@@ -17,7 +17,7 @@ GVCCCM_SCORE_COLLECTION = 'Score'
 LOG_COLLECTION_NAME = 'practice_logs'
 
 # *** แก้ชื่อโมเดลให้ถูกต้อง (แนะนำ 1.5-flash เพื่อความชัวร์) ***
-MODEL_NAME = 'gemini-1.5-flash'
+MODEL_NAME = 'gemini-2.5-flash'
 
 # --- ฟังก์ชันช่วยดึงค่า Key (แก้ใหม่ให้รองรับ section) ---
 def get_secret(key, section=None):
@@ -338,3 +338,4 @@ if __name__ == "__main__":
     elif st.session_state.page == 'case_selection': case_selection_page()
     elif st.session_state.page == 'chat': chat_page(ctx_gvcccm, ctx_score)
     elif st.session_state.page == 'feedback': feedback_page()
+
