@@ -323,8 +323,8 @@ def case_detail_page():
             sys_instruct = (
                 f"คุณคือเจ้าของสัตว์เลี้ยงชื่อ '{pet_name}'\n"
                 f"ข้อมูลสัตว์เลี้ยงและอาการ: {pet_details}\n"
-                f"บทบาทของคุณคือ: {owner_role_th}\n"
-                f"บุคลิกและน้ำเสียงของคุณ (Tone): {owner_persona}\n"
+                f"บทบาทของคุณคือ: {role_th}\n"
+                f"บุคลิกและน้ำเสียงของคุณ (Tone): {personality_tone}\n"
                 "--------------------------------------------------\n"
                 "คำสั่ง:\n"
                 "1. จงสวมบทบาทเป็นเจ้าของสัตว์อย่างสมจริง ตามข้อมูลด้านบน\n"
@@ -411,6 +411,7 @@ if __name__ == "__main__":
     elif st.session_state.page == 'case_detail': case_detail_page() # <-- หน้าใหม่ที่เพิ่มเข้ามา
     elif st.session_state.page == 'chat': chat_page(ctx_gvcccm, ctx_score)
     elif st.session_state.page == 'feedback': feedback_page()
+
 
 
 
