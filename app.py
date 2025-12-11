@@ -341,7 +341,13 @@ def case_detail_page():
             st.rerun()
 
 def chat_page(gvcccm_context, score_context):
-    pet_name = get_case_field(case, 'pet_name')
+    # ดึงข้อมูลเคสที่ถูกเลือกไว้จาก Session State
+    current_case = st.session_state.get('current_case', {})
+    
+    # ดึงชื่อสัตว์โดยใช้ฟังก์ชันตัวช่วย
+    pet_name = get_case_field(current_case, 'pet_name', 'Case')
+    
+    # เปลี่ยนการแสดงผล title ให้ใช้ pet_name ที่เราดึงมา
     st.title(f"💬 ห้องตรวจ: {pet_name}")
     
     if 'chat_session' not in st.session_state or st.session_state.chat_session is None:
@@ -352,6 +358,10 @@ def chat_page(gvcccm_context, score_context):
         st.session_state.chat_session = model.start_chat(history=[])
 
     with st.sidebar:
+        # แสดงข้อมูลย่อๆ เผื่อลืม
+        st.caption(f"กำลังซักประวัติเคส: **{pet_name}**") # ใช้ pet_name ที่ดึงมาแสดงใน sidebar
+        st.divider()
+
         st.info("เมื่อกดจบการซักประวัติ ระบบจะประเมินผลและ **บันทึกข้อมูลอัตโนมัติ**")
         if st.button("🛑 จบการซักประวัติและประเมินผล", type="primary"):
             final_evaluation(st.session_state.chat_history, gvcccm_context, score_context)
@@ -410,6 +420,7 @@ if __name__ == "__main__":
     elif st.session_state.page == 'case_detail': case_detail_page() # <-- หน้าใหม่ที่เพิ่มเข้ามา
     elif st.session_state.page == 'chat': chat_page(ctx_gvcccm, ctx_score)
     elif st.session_state.page == 'feedback': feedback_page()
+
 
 
 
