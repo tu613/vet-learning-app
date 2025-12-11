@@ -341,6 +341,7 @@ def case_detail_page():
             st.rerun()
 
 def chat_page(gvcccm_context, score_context):
+    pet_name = get_case_field(case, 'pet_name')
     st.title(f"💬 ห้องตรวจ: {pet_name}")
     
     if 'chat_session' not in st.session_state or st.session_state.chat_session is None:
@@ -409,6 +410,7 @@ if __name__ == "__main__":
     elif st.session_state.page == 'case_detail': case_detail_page() # <-- หน้าใหม่ที่เพิ่มเข้ามา
     elif st.session_state.page == 'chat': chat_page(ctx_gvcccm, ctx_score)
     elif st.session_state.page == 'feedback': feedback_page()
+
 
 
 
