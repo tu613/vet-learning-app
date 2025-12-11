@@ -216,7 +216,7 @@ def final_evaluation(conversation_history, gvcccm_context, score_context):
         st.error(f"❌ Error during evaluation: {e}")
 
 # ==============================================================================
-# 4. PAGE FUNCTIONS (UPDATED)
+# 4. PAGE FUNCTIONS (UPDATED FOR YOUR DATABASE STRUCTURE)
 # ==============================================================================
 
 def login_page():
@@ -232,43 +232,62 @@ def login_page():
             else:
                 st.warning("กรุณากรอกชื่อผู้ใช้งาน")
 
+# --- ฟังก์ชันตัวช่วยดึงข้อมูล (แก้ปัญหา Data ซ่อนใน owner_role) ---
+def get_case_field(case, field_name, default_value="-"):
+    # 1. ลองหาที่ชั้นนอกสุดก่อน (Root Level)
+    if field_name in case:
+        return case[field_name]
+    
+    # 2. ถ้าไม่เจอ ลองมุดเข้าไปหาใน 'owner_role' (ตามรูป Database ของคุณ)
+    owner_role_obj = case.get('owner_role', {})
+    if isinstance(owner_role_obj, dict) and field_name in owner_role_obj:
+        return owner_role_obj[field_name]
+        
+    return default_value
+
 def case_selection_page():
     st.title("📋 เลือกเคสฝึกซ้อม")
     st.write(f"ผู้ใช้งาน: **{st.session_state.user['name']}** ({st.session_state.user['role']})")
     
-    # ดึงข้อมูลจาก Global variable 'items' ที่โหลดมาจาก Mongo
     global items
     if not items:
-        # ลองโหลดใหม่เผื่อตอนแรกโหลดไม่ติด
         items = fetch_case_scenario()
 
     if not items:
-        st.info("ไม่พบข้อมูลเคสในระบบ หรือกำลังโหลดข้อมูล...")
+        st.info("⏳ กำลังโหลดข้อมูล หรือ ไม่พบข้อมูลใน Database...")
+        # ปุ่ม Reload เผื่อเน็ตหลุด
+        if st.button("🔄 โหลดข้อมูลใหม่"):
+            st.cache_data.clear()
+            st.rerun()
         return
 
-    # Loop แสดงรายการเคสจาก MongoDB
-    # (สมมติว่าใน Mongo มี field: pet_name, difficulty_level, short_description)
+    # Loop แสดงรายการเคส
     for case in items:
         with st.container(border=True):
             c1, c2 = st.columns([4, 1])
             
-            # ส่วนแสดงผลข้อมูลเบื้องต้นในหน้าเลือก
-            pet_name = case.get('pet_name', 'ไม่ระบุชื่อ')
-            
+            # --- แก้การดึงข้อมูลให้ตรงกับ DB จริง ---
+            # ดึงชื่อสัตว์ (อยู่ใน owner_role)
+            pet_name = get_case_field(case, 'pet_name', 'ไม่ระบุชื่อ')
+            # ดึงชื่อเคส (อยู่ที่ Root)
+            case_name = get_case_field(case, 'case_name', 'Case Scenario')
+            # ดึงรายละเอียด (อยู่ใน owner_role)
+            pet_details = get_case_field(case, 'pet_details', '')
+
             with c1:
-                st.subheader(f"🐾 {pet_name} ")
-                # แสดงคำโปรยสั้นๆ (ถ้ามี) หรือแสดงบางส่วนของ detail
+                # แสดงหัวข้อ: ชื่อสัตว์ + ชื่อเคส
+                st.subheader(f"🐶 {pet_name}")
+                st.markdown(f"**หัวข้อ:** {case_name}")
+                # แสดงรายละเอียดสั้นๆ
+                st.caption(f"📝 {pet_details[:150]}..." if len(pet_details) > 150 else pet_details)
 
             with c2:
-                # ปุ่มกดเพื่อไปดูรายละเอียด (ยังไม่เริ่มแชท)
-                if st.button("ดูข้อมูลเคส", key=f"btn_{case['_id']}"):
+                if st.button("ดูข้อมูล", key=f"btn_{case.get('_id', 'unknown')}"):
                     st.session_state.current_case = case
-                    st.session_state.page = 'case_detail' # ย้ายไปหน้า Detail
+                    st.session_state.page = 'case_detail'
                     st.rerun()
 
-# --- หน้าใหม่: แสดงรายละเอียดเคสก่อนเริ่ม ---
 def case_detail_page():
-    # ตรวจสอบว่ามีเคสถูกเลือกมาจริงไหม
     if 'current_case' not in st.session_state or not st.session_state.current_case:
         st.error("เกิดข้อผิดพลาด: ไม่พบข้อมูลเคส")
         if st.button("กลับหน้าเลือกเคส"):
@@ -278,17 +297,24 @@ def case_detail_page():
 
     case = st.session_state.current_case
     
-    st.title(f"📄 ข้อมูลสัตว์ป่วย: {case.get('pet_name', '-')}")
+    # ดึงข้อมูลมาเตรียมไว้ (ใช้ฟังก์ชันตัวช่วยเดิม)
+    pet_name = get_case_field(case, 'pet_name')
+    pet_details = get_case_field(case, 'pet_details')
+    # ใน DB คุณชื่อ field คือ 'role_th' แต่อยู่ใน owner_role
+    owner_role_th = get_case_field(case, 'role_th') 
+    # ใน DB คุณชื่อ field คือ 'personality_tone'
+    owner_persona = get_case_field(case, 'personality_tone') 
     
-    # 1. แสดงรายละเอียดสัตว์ป่วย (Signalment & History)
-    st.info("### 🐶 ข้อมูลสัตว์ป่วย (Pet Details)")
-    st.write(case.get('pet_details', 'ไม่ระบุรายละเอียด'))
+    st.title(f"📄 ข้อมูลผู้ป่วย: {pet_name}")
+    
+    # 1. แสดงรายละเอียดสัตว์ป่วย
+    st.info(f"### 🐶 รายละเอียดสัตว์ป่วย\n\n{pet_details}")
 
-    # 2. แสดงบทบาทสมมติของเจ้าของ (Owner Role)
-    st.warning("### 👤 ข้อมูลเจ้าของสัตว์ (Owner Profile)")
-    st.write(f"**บทบาท:** {case.get('role_th', 'ไม่ระบุ')}")
-    # (Optional) อาจจะซ่อน Persona ลึกๆ ไว้ไม่ให้นักศึกษาเห็น หรือจะโชว์ก็ได้ตาม Design
-    # st.caption(f"Note: {case.get('owner_persona', '')}") 
+    # 2. แสดงบทบาทเจ้าของ (ดึงจาก role_th)
+    st.warning(f"### 👤 ข้อมูลเจ้าของสัตว์ (Role Play)\n\n**บทบาท:** {owner_role_th}")
+
+    # (Optional) แสดง Persona หรือเก็บไว้ให้ AI อย่างเดียวก็ได้
+    # st.write(f"**บุคลิก:** {owner_persona}")
 
     st.divider()
 
@@ -297,23 +323,17 @@ def case_detail_page():
     with col_back:
         if st.button("⬅️ ย้อนกลับ"):
             st.session_state.page = 'case_selection'
-            st.session_state.current_case = None # Clear selection
+            st.session_state.current_case = None
             st.rerun()
             
     with col_start:
         if st.button("🚀 เริ่มซักประวัติ (Start Chat)", type="primary"):
-            # --- สร้าง System Prompt ตรงนี้ ---
-            # ดึงข้อมูลจาก MongoDB มาใส่ใน Prompt
-            pet_name = case.get('pet_name', 'สัตว์เลี้ยง')
-            pet_details = case.get('pet_details', '-')
-            owner_persona = case.get('owner_persona', 'ตอบคำถามตามปกติ')
-            owner_role = case.get('owner_role_th', '-')
-
+            # --- สร้าง System Prompt (แก้ให้ตรง field DB) ---
             sys_instruct = (
                 f"คุณคือเจ้าของสัตว์เลี้ยงชื่อ '{pet_name}'\n"
                 f"ข้อมูลสัตว์เลี้ยงและอาการ: {pet_details}\n"
-                f"บทบาทของคุณคือ: {owner_role}\n"
-                f"บุคลิกและอารมณ์ของคุณ (Persona): {owner_persona}\n"
+                f"บทบาทของคุณคือ: {owner_role_th}\n"
+                f"บุคลิกและน้ำเสียงของคุณ (Tone): {owner_persona}\n"
                 "--------------------------------------------------\n"
                 "คำสั่ง:\n"
                 "1. จงสวมบทบาทเป็นเจ้าของสัตว์อย่างสมจริง ตามข้อมูลด้านบน\n"
@@ -322,11 +342,10 @@ def case_detail_page():
                 "4. ตอบสั้นๆ กระชับ เหมือนบทสนทนาจริง ไม่ต้องทางการมาก\n"
             )
             
-            # Setup Session
             st.session_state.owner_system_prompt = sys_instruct
             st.session_state.chat_history = []
             st.session_state.chat_session = None
-            st.session_state.page = 'chat' # ไปหน้าแชท
+            st.session_state.page = 'chat'
             st.rerun()
 
 def chat_page(gvcccm_context, score_context):
@@ -401,4 +420,5 @@ if __name__ == "__main__":
     elif st.session_state.page == 'case_detail': case_detail_page() # <-- หน้าใหม่ที่เพิ่มเข้ามา
     elif st.session_state.page == 'chat': chat_page(ctx_gvcccm, ctx_score)
     elif st.session_state.page == 'feedback': feedback_page()
+
 
