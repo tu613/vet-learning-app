@@ -277,9 +277,7 @@ def case_selection_page():
             with c1:
                 # แสดงหัวข้อ: ชื่อสัตว์ + ชื่อเคส
                 st.subheader(f"🐶 {pet_name}")
-                st.markdown(f"**หัวข้อ:** {case_name}")
-                # แสดงรายละเอียดสั้นๆ
-                st.caption(f"📝 {pet_details[:150]}..." if len(pet_details) > 150 else pet_details)
+               
 
             with c2:
                 if st.button("ดูข้อมูล", key=f"btn_{case.get('_id', 'unknown')}"):
@@ -300,21 +298,14 @@ def case_detail_page():
     # ดึงข้อมูลมาเตรียมไว้ (ใช้ฟังก์ชันตัวช่วยเดิม)
     pet_name = get_case_field(case, 'pet_name')
     pet_details = get_case_field(case, 'pet_details')
-    # ใน DB คุณชื่อ field คือ 'role_th' แต่อยู่ใน owner_role
-    owner_role_th = get_case_field(case, 'role_th') 
-    # ใน DB คุณชื่อ field คือ 'personality_tone'
-    owner_persona = get_case_field(case, 'personality_tone') 
+    
     
     st.title(f"📄 ข้อมูลผู้ป่วย: {pet_name}")
     
     # 1. แสดงรายละเอียดสัตว์ป่วย
     st.info(f"### 🐶 รายละเอียดสัตว์ป่วย\n\n{pet_details}")
 
-    # 2. แสดงบทบาทเจ้าของ (ดึงจาก role_th)
-    st.warning(f"### 👤 ข้อมูลเจ้าของสัตว์ (Role Play)\n\n**บทบาท:** {owner_role_th}")
-
-    # (Optional) แสดง Persona หรือเก็บไว้ให้ AI อย่างเดียวก็ได้
-    # st.write(f"**บุคลิก:** {owner_persona}")
+  
 
     st.divider()
 
@@ -420,5 +411,6 @@ if __name__ == "__main__":
     elif st.session_state.page == 'case_detail': case_detail_page() # <-- หน้าใหม่ที่เพิ่มเข้ามา
     elif st.session_state.page == 'chat': chat_page(ctx_gvcccm, ctx_score)
     elif st.session_state.page == 'feedback': feedback_page()
+
 
 
