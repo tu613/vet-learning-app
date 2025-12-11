@@ -341,7 +341,7 @@ def case_detail_page():
             st.rerun()
 
 def chat_page(gvcccm_context, score_context):
-    st.title(f"💬 ห้องตรวจ: {st.session_state.current_case.get('pet_name', 'Case')}")
+    st.title(f"💬 ห้องตรวจ: {st.session_state.current_case.get({pet_name}, 'Case')}")
     
     if 'chat_session' not in st.session_state or st.session_state.chat_session is None:
         model = genai.GenerativeModel(
@@ -351,9 +351,6 @@ def chat_page(gvcccm_context, score_context):
         st.session_state.chat_session = model.start_chat(history=[])
 
     with st.sidebar:
-        # แสดงข้อมูลย่อๆ เผื่อลืม
-        st.caption(f"กำลังซักประวัติเคส: **{st.session_state.current_case.get('pet_name')}**")
-        st.divider()
         st.info("เมื่อกดจบการซักประวัติ ระบบจะประเมินผลและ **บันทึกข้อมูลอัตโนมัติ**")
         if st.button("🛑 จบการซักประวัติและประเมินผล", type="primary"):
             final_evaluation(st.session_state.chat_history, gvcccm_context, score_context)
@@ -412,6 +409,7 @@ if __name__ == "__main__":
     elif st.session_state.page == 'case_detail': case_detail_page() # <-- หน้าใหม่ที่เพิ่มเข้ามา
     elif st.session_state.page == 'chat': chat_page(ctx_gvcccm, ctx_score)
     elif st.session_state.page == 'feedback': feedback_page()
+
 
 
 
